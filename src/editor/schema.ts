@@ -1,3 +1,4 @@
+import type { Quantity } from '../ha/readings';
 import type { SideLabels } from '../types/config';
 
 export interface SelectorField {
@@ -24,6 +25,8 @@ export type FormField = SelectorField | GridField | ExpandableField;
 
 export type FieldLabeller = (field: FormField) => string;
 
+export type SensorLayout = 'stacked' | 'grid';
+
 const text = (name: string): SelectorField => ({ name, selector: { text: {} } });
 
 const toggle = (name: string): SelectorField => ({ name, selector: { boolean: {} } });
@@ -31,11 +34,6 @@ const toggle = (name: string): SelectorField => ({ name, selector: { boolean: {}
 const volts = (name: string): SelectorField => ({
   name,
   selector: { number: { mode: 'box', step: 1, unit_of_measurement: 'V' } },
-});
-
-const sensor = (name: string, deviceClass: string): SelectorField => ({
-  name,
-  selector: { entity: { filter: { domain: 'sensor', device_class: deviceClass } } },
 });
 
 const grid = (...schema: FormField[]): GridField => ({ type: 'grid', name: '', schema });
@@ -85,13 +83,6 @@ export const PHASE_SCHEMA: readonly FormField[] = [
   grid(text('name'), { name: 'color', selector: { color_rgb: {} } }),
 ];
 
-export const SIDE_SCHEMA: readonly FormField[] = [
-  sensor('voltage', 'voltage'),
-  sensor('power', 'power'),
-];
-
-export const SIDE_GRID_SCHEMA: readonly FormField[] = [grid(...SIDE_SCHEMA)];
-
 const FIELD_LABELS: Readonly<Partial<Record<string, string>>> = {
   title: 'Title',
   before_label: 'Before label',
@@ -109,13 +100,11 @@ const FIELD_LABELS: Readonly<Partial<Record<string, string>>> = {
   scale_max: 'Scale to',
   name: 'Phase name',
   color: 'Color',
-  voltage: 'Voltage sensor',
-  power: 'Power sensor',
 };
 
-const COMPACT_LABELS: Readonly<Partial<Record<string, string>>> = {
-  voltage: 'Voltage',
-  power: 'Power',
+export const SENSOR_LABELS: Readonly<Record<Quantity, Readonly<Record<SensorLayout, string>>>> = {
+  voltage: { stacked: 'Voltage sensor', grid: 'Voltage' },
+  power: { stacked: 'Power sensor', grid: 'Power' },
 };
 
 const DYNAMIC_LABELS: Readonly<Partial<Record<string, (labels: SideLabels) => string>>> = {
@@ -129,6 +118,3 @@ export const settingsLabeller =
     DYNAMIC_LABELS[field.name]?.(labels) ?? FIELD_LABELS[field.name] ?? field.name;
 
 export const fieldLabel: FieldLabeller = (field) => FIELD_LABELS[field.name] ?? field.name;
-
-export const compactFieldLabel: FieldLabeller = (field) =>
-  COMPACT_LABELS[field.name] ?? fieldLabel(field);

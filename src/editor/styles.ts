@@ -79,6 +79,20 @@ export const editorStyles = css`
     padding: 0 0 8px;
   }
 
+  .sensors {
+    display: grid;
+    gap: 12px;
+  }
+
+  .sensors-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+
+  ha-entity-picker {
+    display: block;
+    min-width: 0;
+  }
+
   .badge {
     display: flex;
     align-items: center;

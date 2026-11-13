@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseNumericState, readEntity } from '../src/ha/readings';
+import { measuresQuantity, parseNumericState, readEntity } from '../src/ha/readings';
 import type { HassEntities, HassEntity } from '../src/types/ha';
 
 const entity = (entityId: string, state: string, unit?: string): HassEntity => ({
@@ -47,5 +47,24 @@ describe('parseNumericState', () => {
     expect(parseNumericState('  ')).toBeUndefined();
     expect(parseNumericState('NaN')).toBeUndefined();
     expect(parseNumericState('12 V')).toBeUndefined();
+  });
+});
+
+describe('measuresQuantity', () => {
+  const sensor = (attributes: HassEntity['attributes']): HassEntity => ({
+    ...entity('sensor.any', '1'),
+    attributes,
+  });
+
+  it('matches by device class', () => {
+    expect(measuresQuantity(sensor({ device_class: 'voltage' }), 'voltage')).toBe(true);
+    expect(measuresQuantity(sensor({ device_class: 'power' }), 'voltage')).toBe(false);
+  });
+
+  it('matches sensors without a device class by unit', () => {
+    expect(measuresQuantity(sensor({ unit_of_measurement: 'V' }), 'voltage')).toBe(true);
+    expect(measuresQuantity(sensor({ unit_of_measurement: 'kW' }), 'power')).toBe(true);
+    expect(measuresQuantity(sensor({ unit_of_measurement: 'A' }), 'voltage')).toBe(false);
+    expect(measuresQuantity(sensor({}), 'power')).toBe(false);
   });
 });

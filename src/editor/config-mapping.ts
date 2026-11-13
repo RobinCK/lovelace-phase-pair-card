@@ -1,4 +1,5 @@
 import { DEFAULT_HOURS, DEFAULT_LABELS, DEFAULT_VOLTAGE, createPhase } from '../config/defaults';
+import type { Quantity } from '../ha/readings';
 import type {
   PhaseConfig,
   PhasePairCardConfig,
@@ -169,15 +170,19 @@ export const cleanSide = (side: SideEntitiesConfig): SideEntitiesConfig => ({
   ...(side.power ? { power: side.power } : {}),
 });
 
-export const updateSide = (
+export const updateSensor = (
   config: PhasePairCardConfig,
   index: number,
   side: SideKey,
-  entities: SideEntitiesConfig,
+  quantity: Quantity,
+  entityId: string | undefined,
 ): PhasePairCardConfig => {
-  const cleaned = cleanSide(entities);
+  const current = phasesOf(config)[index]?.[side] ?? {};
+  const entities = cleanSide(
+    quantity === 'voltage' ? { ...current, voltage: entityId } : { ...current, power: entityId },
+  );
 
-  return updatePhase(config, index, side === 'before' ? { before: cleaned } : { after: cleaned });
+  return updatePhase(config, index, side === 'before' ? { before: entities } : { after: entities });
 };
 
 export const addPhase = (config: PhasePairCardConfig): PhasePairCardConfig => {

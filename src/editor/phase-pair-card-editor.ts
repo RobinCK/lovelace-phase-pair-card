@@ -5,14 +5,10 @@ import { styleMap } from 'lit/directives/style-map.js';
 import { DEFAULT_LABELS, phaseColor, phaseName } from '../config/defaults';
 import { hexToRgb, isHexColor, phaseAppearance, rgbToHex } from '../logic/color';
 import type { Rgb } from '../logic/color';
-import type {
-  PhaseConfig,
-  PhasePairCardConfig,
-  SideEntitiesConfig,
-  SideLabels,
-  ViewMode,
-} from '../types/config';
-import type { HomeAssistant } from '../types/ha';
+import { QUANTITIES, measuresQuantity } from '../ha/readings';
+import type { Quantity } from '../ha/readings';
+import type { PhaseConfig, PhasePairCardConfig, SideLabels, ViewMode } from '../types/config';
+import type { HassEntity, HomeAssistant } from '../types/ha';
 import {
   addPhase,
   applySettingsFields,
@@ -21,7 +17,7 @@ import {
   sensorCount,
   toSettingsFields,
   updatePhase,
-  updateSide,
+  updateSensor,
   viewOf,
   withView,
 } from './config-mapping';
@@ -32,14 +28,12 @@ import {
   CHART_SCHEMA,
   GENERAL_SCHEMA,
   PHASE_SCHEMA,
-  SIDE_GRID_SCHEMA,
-  SIDE_SCHEMA,
+  SENSOR_LABELS,
   SINGLE_THRESHOLDS_SCHEMA,
-  compactFieldLabel,
   fieldLabel,
   settingsLabeller,
 } from './schema';
-import type { FieldLabeller, FormField } from './schema';
+import type { FormField, SensorLayout } from './schema';
 import { editorStyles } from './styles';
 
 interface FormValue<T> {
@@ -69,6 +63,13 @@ const plusIcon: SVGTemplateResult = svg`<svg width="18" height="18" viewBox="0 0
 const trashIcon: SVGTemplateResult = svg`<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>`;
 
 const sensorsText = (count: number): string => `${count} sensor${count === 1 ? '' : 's'}`;
+
+const SENSOR_FILTERS: Readonly<Record<Quantity, (entity: HassEntity) => boolean>> = {
+  voltage: (entity) => measuresQuantity(entity, 'voltage'),
+  power: (entity) => measuresQuantity(entity, 'power'),
+};
+
+const SENSOR_DOMAINS: readonly string[] = ['sensor'];
 
 const colorOf = (phase: PhaseConfig, index: number): string =>
   phase.color && isHexColor(phase.color) ? phase.color : phaseColor(index);
@@ -166,11 +167,11 @@ export class PhasePairCardEditor extends LitElement {
       <div class="side-title" style=${styleMap({ '--ppc-line': line })}>
         <span class="line line-before" aria-hidden="true"></span>${labels.before}
       </div>
-      ${this._sideForm(phase, 0, 'before', SIDE_GRID_SCHEMA, compactFieldLabel)}
+      ${this._sensorPickers(phase, 0, 'before', 'grid')}
       <div class="side-title" style=${styleMap({ '--ppc-line': line })}>
         <span class="line line-after" aria-hidden="true"></span>${labels.after}
       </div>
-      ${this._sideForm(phase, 0, 'after', SIDE_GRID_SCHEMA, compactFieldLabel)}
+      ${this._sensorPickers(phase, 0, 'after', 'grid')}
     `;
   }
 
@@ -238,7 +239,7 @@ export class PhasePairCardEditor extends LitElement {
       .expanded=${side === 'before'}
     >
       <span slot="leading-icon" class="legend-${side}" aria-hidden="true"></span>
-      <div class="side-content">${this._sideForm(phase, index, side, SIDE_SCHEMA, fieldLabel)}</div>
+      <div class="side-content">${this._sensorPickers(phase, index, side, 'stacked')}</div>
     </ha-expansion-panel>`;
   }
 
@@ -273,22 +274,31 @@ export class PhasePairCardEditor extends LitElement {
     ></ha-form>`;
   }
 
-  private _sideForm(
+  private _sensorPickers(
     phase: PhaseConfig,
     index: number,
     side: SideKey,
-    schema: readonly FormField[],
-    labeller: FieldLabeller,
+    layout: SensorLayout,
   ): TemplateResult {
-    return html`<ha-form
-      .hass=${this.hass}
-      .data=${phase[side] ?? {}}
-      .schema=${schema}
-      .computeLabel=${labeller}
-      @value-changed=${(event: CustomEvent<FormValue<SideEntitiesConfig>>) => {
-        this._sideChanged(index, side, event);
-      }}
-    ></ha-form>`;
+    const entities = phase[side] ?? {};
+
+    return html`<div class="sensors sensors-${layout}">
+      ${QUANTITIES.map(
+        (quantity) =>
+          html`<ha-entity-picker
+            .hass=${this.hass}
+            .value=${entities[quantity] ?? ''}
+            .label=${SENSOR_LABELS[quantity][layout]}
+            .helper=${entities[quantity]}
+            .includeDomains=${SENSOR_DOMAINS}
+            .entityFilter=${SENSOR_FILTERS[quantity]}
+            .showEntityId=${true}
+            @value-changed=${(event: CustomEvent<FormValue<string | undefined>>) => {
+              this._sensorChanged(index, side, quantity, event);
+            }}
+          ></ha-entity-picker>`,
+      )}
+    </div>`;
   }
 
   private _labels(): SideLabels {
@@ -321,16 +331,17 @@ export class PhasePairCardEditor extends LitElement {
     );
   }
 
-  private _sideChanged(
+  private _sensorChanged(
     index: number,
     side: SideKey,
-    event: CustomEvent<FormValue<SideEntitiesConfig>>,
+    quantity: Quantity,
+    event: CustomEvent<FormValue<string | undefined>>,
   ): void {
     event.stopPropagation();
 
     if (!this._config) return;
 
-    this._commit(updateSide(this._config, index, side, event.detail.value));
+    this._commit(updateSensor(this._config, index, side, quantity, event.detail.value));
   }
 
   private _setView(view: ViewMode): void {

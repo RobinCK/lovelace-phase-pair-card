@@ -1,4 +1,4 @@
-import type { HassEntities } from '../types/ha';
+import type { HassEntities, HassEntity } from '../types/ha';
 
 export type Quantity = 'voltage' | 'power';
 
@@ -33,6 +33,16 @@ export const unitFactor = (quantity: Quantity, unit: unknown): number => {
   if (typeof unit !== 'string') return 1;
 
   return UNIT_FACTORS[quantity][unit] ?? 1;
+};
+
+export const QUANTITIES: readonly Quantity[] = ['voltage', 'power'];
+
+export const measuresQuantity = (entity: HassEntity, quantity: Quantity): boolean => {
+  const { device_class: deviceClass, unit_of_measurement: unit } = entity.attributes;
+
+  if (deviceClass === quantity) return true;
+
+  return typeof unit === 'string' && UNIT_FACTORS[quantity][unit] !== undefined;
 };
 
 export const parseNumericState = (state: string): number | undefined => {

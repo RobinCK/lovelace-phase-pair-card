@@ -1,6 +1,6 @@
 {
   "name": "lovelace-phase-pair-card",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Home Assistant Lovelace card that shows per-phase voltage and power before and after voltage stabilizers.",
   "type": "module",
   "private": true,
