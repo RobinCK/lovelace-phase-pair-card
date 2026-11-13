@@ -20,13 +20,15 @@ It is built for setups with energy meters on both sides of the stabilizers, for 
 | ------------------------------------------------- | ---------------------------------------------------- |
 | ![Phone, edge states](docs/images/phone-edge.png) | ![Phone, three phases](docs/images/phone-single.png) |
 
+![Three phases side by side on a desktop](docs/images/desktop-single.png)
+
 ## Features
 
 - One row per phase: colored phase badge, voltage before → after, signed difference (after − before) and power before → after.
 - Horizontal voltage scale with the normal range highlighted, a nominal tick and two markers: a ring for "before" and a dot for "after".
 - Voltage values are colored by thresholds: normal, warning (outside the normal range) and critical (outside the critical range).
 - Phase imbalance in the header: max − min voltage across phases, separately for "before" and "after".
-- **Single phase** view with a history chart: normal band, critical thresholds, night shading, min / average / max with timestamps and a hover tooltip.
+- **Single phase** view with a history chart: normal band, critical thresholds, night shading, min / average / max with timestamps and a hover tooltip. Several phases in one card are placed side by side when there is room and stacked on narrow screens.
 - Every value is clickable and opens the Home Assistant more-info dialog of its entity; clicking the chart opens the history of the "after" voltage.
 - Handles `unavailable`, `unknown`, missing entities and non-numeric states without breaking the layout.
 - Uses only Home Assistant theme variables, so it follows light, dark and custom themes.
@@ -55,7 +57,7 @@ HACS registers the dashboard resource automatically.
 1. Download `phase-pair-card.js` from the [latest release](https://github.com/RobinCK/lovelace-phase-pair-card/releases/latest).
 2. Copy it to `<config>/www/phase-pair-card.js`.
 3. Go to **Settings → Dashboards → ⋮ → Resources** and add a resource:
-   - URL: `/local/phase-pair-card.js?v=1.0.2`
+   - URL: `/local/phase-pair-card.js?v=1.0.3`
    - Type: **JavaScript module**
 
    If your dashboards are in YAML mode, add it to `configuration.yaml` instead:
@@ -63,7 +65,7 @@ HACS registers the dashboard resource automatically.
    ```yaml
    lovelace:
      resources:
-       - url: /local/phase-pair-card.js?v=1.0.2
+       - url: /local/phase-pair-card.js?v=1.0.3
          type: module
    ```
 
@@ -74,7 +76,7 @@ HACS registers the dashboard resource automatically.
 - **HACS** shows an update as soon as a new release is published. Click **Update** and reload the browser page.
 - **Manual**: replace `phase-pair-card.js` with the file from the new release and bump the `?v=` query in the resource URL so browsers drop the cached copy.
 
-The browser console prints the loaded version (`PHASE-PAIR-CARD v1.0.2`), which is handy to confirm an update.
+The browser console prints the loaded version (`PHASE-PAIR-CARD v1.0.3`), which is handy to confirm an update.
 
 ## Configuration
 
@@ -122,21 +124,21 @@ show_imbalance: true
 
 ### Card options
 
-| Option            | Type              | Default   | Description                                                                                                          |
-| ----------------- | ----------------- | --------- | -------------------------------------------------------------------------------------------------------------------- |
-| `type`            | string            | —         | `custom:phase-pair-card`                                                                                             |
-| `title`           | string            | —         | Card title.                                                                                                          |
-| `view`            | `all` \| `single` | `all`     | `all` shows compact rows with a voltage scale; `single` shows a detailed panel with a history chart for every phase. |
-| `before_label`    | string            | `Before`  | Name of the "before" side, for example the grid input before the stabilizers.                                        |
-| `after_label`     | string            | `After`   | Name of the "after" side, for example the house.                                                                     |
-| `phases`          | list              | required  | Phases to show, see [Phase options](#phase-options).                                                                 |
-| `voltage`         | object            | see below | Voltage thresholds, see [Voltage options](#voltage-options).                                                         |
-| `show_power`      | boolean           | `true`    | Show power before → after for phases that have power sensors.                                                        |
-| `show_delta`      | boolean           | `true`    | Show the difference after − before.                                                                                  |
-| `show_imbalance`  | boolean           | `true`    | `all` view: show the phase imbalance (max − min voltage) for both sides.                                             |
-| `show_before`     | boolean           | `true`    | `single` view: show the "before" value, line and statistics.                                                         |
-| `hours_to_show`   | number            | `24`      | `single` view: history length in hours, from 1 to 168.                                                               |
-| `highlight_night` | boolean           | `true`    | `single` view: shade the night hours (23:00–06:00) on the chart.                                                     |
+| Option            | Type              | Default   | Description                                                                                                                                                     |
+| ----------------- | ----------------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `type`            | string            | —         | `custom:phase-pair-card`                                                                                                                                        |
+| `title`           | string            | —         | Card title.                                                                                                                                                     |
+| `view`            | `all` \| `single` | `all`     | `all` shows compact rows with a voltage scale; `single` shows a detailed panel with a history chart for every phase, side by side when the card is wide enough. |
+| `before_label`    | string            | `Before`  | Name of the "before" side, for example the grid input before the stabilizers.                                                                                   |
+| `after_label`     | string            | `After`   | Name of the "after" side, for example the house.                                                                                                                |
+| `phases`          | list              | required  | Phases to show, see [Phase options](#phase-options).                                                                                                            |
+| `voltage`         | object            | see below | Voltage thresholds, see [Voltage options](#voltage-options).                                                                                                    |
+| `show_power`      | boolean           | `true`    | Show power before → after for phases that have power sensors.                                                                                                   |
+| `show_delta`      | boolean           | `true`    | Show the difference after − before.                                                                                                                             |
+| `show_imbalance`  | boolean           | `true`    | `all` view: show the phase imbalance (max − min voltage) for both sides.                                                                                        |
+| `show_before`     | boolean           | `true`    | `single` view: show the "before" value, line and statistics.                                                                                                    |
+| `hours_to_show`   | number            | `24`      | `single` view: history length in hours, from 1 to 168.                                                                                                          |
+| `highlight_night` | boolean           | `true`    | `single` view: shade the night hours (23:00–06:00) on the chart.                                                                                                |
 
 ### Phase options
 
@@ -221,7 +223,7 @@ phases:
     after: { voltage: sensor.house_l3_voltage }
 ```
 
-### One card per phase with a 12-hour chart
+### Three phases with charts side by side
 
 ```yaml
 type: custom:phase-pair-card
@@ -232,15 +234,21 @@ hours_to_show: 12
 phases:
   - name: L1
     color: '#d32f2f'
-    before:
-      voltage: sensor.zig_meter_raw_l1_voltage
-      power: sensor.zig_meter_raw_l1_power
-    after:
-      voltage: sensor.zig_meter_house_l1_voltage
-      power: sensor.zig_meter_house_l1_power
+    before: { voltage: sensor.grid_l1_voltage, power: sensor.grid_l1_power }
+    after: { voltage: sensor.house_l1_voltage, power: sensor.house_l1_power }
+  - name: L2
+    color: '#000000'
+    before: { voltage: sensor.grid_l2_voltage, power: sensor.grid_l2_power }
+    after: { voltage: sensor.house_l2_voltage, power: sensor.house_l2_power }
+  - name: L3
+    color: '#ffffff'
+    before: { voltage: sensor.grid_l3_voltage, power: sensor.grid_l3_power }
+    after: { voltage: sensor.house_l3_voltage, power: sensor.house_l3_power }
+grid_options:
+  columns: full
 ```
 
-Add one such card per phase to a section, or list all three phases in a single card as in the phone screenshot above.
+The phases share one row when every phase gets at least 300 px, two per row on medium widths (an odd last phase takes the whole row) and one per row on phones. In a sections dashboard, put the card in a wide section (section width 3 or 4, or `column_span` in YAML) and keep `columns: full` so the card follows the section width on every screen.
 
 ### Stricter thresholds for sensitive equipment
 

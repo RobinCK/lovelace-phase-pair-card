@@ -12,8 +12,11 @@ export interface ViewContext {
   readonly openMoreInfo: (entityId: string) => void;
 }
 
+export type CardSurface = 'framed' | 'bare';
+
 export interface CardView {
   readonly usesHistory: boolean;
+  readonly surface: CardSurface;
   readonly render: (context: ViewContext) => TemplateResult;
   readonly cardSize: (settings: CardSettings) => number;
 }

@@ -161,6 +161,7 @@ const renderRow = (phase: PhaseModel, context: ViewContext): TemplateResult => {
 
 export const allView: CardView = {
   usesHistory: false,
+  surface: 'framed',
   render: (context) =>
     html`<div class="view view-all">
       ${context.settings.title ? html`<h2 class="title">${context.settings.title}</h2>` : nothing}

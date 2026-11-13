@@ -119,7 +119,7 @@ export class PhasePairCard extends LitElement {
 
     const view = VIEWS[settings.view];
 
-    return html`<ha-card>
+    return html`<ha-card class=${view.surface}>
       ${view.render({
         settings,
         phases: buildPhaseModels(settings, hass),

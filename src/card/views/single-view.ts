@@ -230,10 +230,11 @@ const renderPanel = (phase: PhaseModel, context: ViewContext): TemplateResult =>
 
 export const singleView: CardView = {
   usesHistory: true,
+  surface: 'bare',
   render: (context) =>
     html`<div class="view view-single">
       ${context.settings.title ? html`<h2 class="title">${context.settings.title}</h2>` : nothing}
-      ${context.phases.map((phase) => renderPanel(phase, context))}
+      <div class="panels">${context.phases.map((phase) => renderPanel(phase, context))}</div>
     </div>`,
   cardSize: (settings) => (settings.title ? 1 : 0) + settings.phases.length * 5,
 };

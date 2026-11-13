@@ -66,6 +66,7 @@ export const phaseAppearance = (color: string, darkMode: boolean): PhaseAppearan
     background: color,
     foreground: readableTextOn(color),
     outlined: contrast < OUTLINE_BELOW,
-    line: contrast < LINE_BELOW ? 'var(--primary-text-color)' : color,
+    line:
+      contrast < LINE_BELOW ? `color-mix(in srgb, ${color} 50%, var(--primary-text-color))` : color,
   };
 };

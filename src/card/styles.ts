@@ -19,6 +19,13 @@ export const cardStyles = css`
     box-sizing: border-box;
   }
 
+  ha-card.bare {
+    overflow: visible;
+    border: none;
+    background: none;
+    box-shadow: none;
+  }
+
   .view-all {
     display: flex;
     flex-direction: column;
@@ -34,8 +41,21 @@ export const cardStyles = css`
     color: var(--primary-text-color);
   }
 
+  .view-single {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    container-type: inline-size;
+  }
+
   .view-single .title {
-    padding: 12px 12px 0;
+    padding: 4px 4px 0;
+  }
+
+  .panels {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+    gap: 8px;
   }
 
   .tone-normal {
@@ -333,13 +353,18 @@ export const cardStyles = css`
     font-size: inherit;
   }
 
-  .view-single .panel + .panel {
-    border-top: 1px solid var(--divider-color);
-  }
-
   .panel {
     display: flex;
     flex-direction: column;
+    justify-content: space-between;
+    min-width: 0;
+    container-type: inline-size;
+    overflow: hidden;
+    box-sizing: border-box;
+    border: var(--ha-card-border-width, 1px) solid var(--ha-card-border-color, var(--divider-color));
+    border-radius: var(--ha-card-border-radius, 12px);
+    background: var(--ppc-card);
+    box-shadow: var(--ha-card-box-shadow, none);
   }
 
   .panel-body {
@@ -519,6 +544,41 @@ export const cardStyles = css`
     margin-left: 5px;
     font-size: 11px;
     color: var(--secondary-text-color);
+  }
+
+  @container (min-width: 608px) and (max-width: 915.98px) {
+    .panel:last-child:nth-child(odd) {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @container (max-width: 349.98px) {
+    .panel-head {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+    }
+
+    .head-side {
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+      margin-left: 0;
+    }
+
+    .voltage-large {
+      font-size: 24px;
+      line-height: 28px;
+    }
+
+    .panel-meta {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .legend {
+      margin-left: 0;
+    }
   }
 
   @media (max-width: 420px) {
