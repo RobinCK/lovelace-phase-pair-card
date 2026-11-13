@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { linePath, nightSpans, valueDomain } from '../src/logic/chart';
+import { linePath, nightLabelX, nightSpans, valueDomain } from '../src/logic/chart';
 
 describe('valueDomain', () => {
   it('pads around the data and the normal band', () => {
@@ -31,5 +31,21 @@ describe('nightSpans', () => {
     const end = new Date(2026, 0, 16, 12, 0).getTime();
 
     expect(nightSpans([start, end])).toEqual([[start, new Date(2026, 0, 16, 6).getTime()]]);
+  });
+});
+
+describe('nightLabelX', () => {
+  it('places the label at the start of the widest night', () => {
+    const nights = [
+      [0, 10],
+      [60, 90],
+    ] as const;
+
+    expect(nightLabelX(nights, [0, 100], 200, 40)).toBe(120);
+  });
+
+  it('hides the label when no night is wide enough', () => {
+    expect(nightLabelX([[0, 10]], [0, 100], 200, 40)).toBeUndefined();
+    expect(nightLabelX([], [0, 100], 200, 40)).toBeUndefined();
   });
 });

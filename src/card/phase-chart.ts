@@ -7,6 +7,7 @@ import {
   bucketTime,
   bucketX,
   linePath,
+  nightLabelX,
   nightSpans,
   timeX,
   toY,
@@ -26,6 +27,10 @@ const TOP = 8;
 const LABEL_HEIGHT = 14;
 
 const TOOLTIP_EDGE = 72;
+
+const NIGHT_LABEL_WIDTH = 52;
+
+const NIGHT_LABEL_INSET = 6;
 
 const HOUR = 3_600_000;
 
@@ -144,8 +149,7 @@ export class PhasePairChart extends LitElement {
             >${value}</span
           >`,
       )}
-      ${nights.length > 0 ? html`<span class="night-pill">Night</span>` : nothing}
-      ${this._renderTooltip(frame)}
+      ${this._renderNightLabel(nights, width)} ${this._renderTooltip(frame)}
     </div>`;
   }
 
@@ -158,6 +162,19 @@ export class PhasePairChart extends LitElement {
     return svg`<rect class="band" x="0" y=${toY(frame, high)} width=${frame.width} height=${toY(frame, low) - toY(frame, high)}></rect>
       ${line(high, 'normal-line')} ${line(low, 'normal-line')}
       ${critical.map((value) => line(value, 'critical-line'))}`;
+  }
+
+  private _renderNightLabel(
+    nights: readonly TimeSpan[],
+    width: number,
+  ): TemplateResult | typeof nothing {
+    const x = nightLabelX(nights, this.span, width, NIGHT_LABEL_WIDTH);
+
+    if (x === undefined) return nothing;
+
+    return html`<span class="night-pill" style=${styleMap({ left: `${x + NIGHT_LABEL_INSET}px` })}
+      >Night</span
+    >`;
   }
 
   private _renderCursor(frame: ChartFrame): SVGTemplateResult | typeof nothing {
@@ -366,7 +383,6 @@ export class PhasePairChart extends LitElement {
 
     .night-pill {
       position: absolute;
-      left: 6px;
       bottom: 6px;
       padding: 0 6px;
       border-radius: 999px;

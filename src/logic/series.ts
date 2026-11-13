@@ -3,6 +3,14 @@ export interface Sample {
   readonly value: number | null;
 }
 
+export interface Segment {
+  readonly from: number;
+  readonly to: number;
+  readonly value: number | null;
+  readonly min?: number;
+  readonly max?: number;
+}
+
 export interface Extreme {
   readonly value: number;
   readonly time: number;
@@ -14,17 +22,17 @@ export interface Summary {
   readonly average: number;
 }
 
-interface Segment {
-  readonly from: number;
-  readonly to: number;
-  readonly value: number | null;
-}
-
 interface ValueSegment extends Segment {
   readonly value: number;
 }
 
-const toSegments = (samples: readonly Sample[], start: number, end: number): Segment[] => {
+const hasValue = (segment: Segment): segment is ValueSegment => segment.value !== null;
+
+export const samplesToSegments = (
+  samples: readonly Sample[],
+  start: number,
+  end: number,
+): Segment[] => {
   const sorted = [...samples].sort((a, b) => a.time - b.time);
 
   return sorted.flatMap((sample, index) => {
@@ -36,10 +44,8 @@ const toSegments = (samples: readonly Sample[], start: number, end: number): Seg
   });
 };
 
-const hasValue = (segment: Segment): segment is ValueSegment => segment.value !== null;
-
 export const resample = (
-  samples: readonly Sample[],
+  segments: readonly Segment[],
   start: number,
   end: number,
   buckets: number,
@@ -50,14 +56,15 @@ export const resample = (
   const sums = new Array<number>(buckets).fill(0);
   const weights = new Array<number>(buckets).fill(0);
 
-  for (const segment of toSegments(samples, start, end).filter(hasValue)) {
-    const first = Math.floor((segment.from - start) / width);
-    const last = Math.min(buckets - 1, Math.floor((segment.to - start) / width));
+  for (const segment of segments.filter(hasValue)) {
+    const from = Math.max(segment.from, start);
+    const to = Math.min(segment.to, end);
+    const first = Math.max(0, Math.floor((from - start) / width));
+    const last = Math.min(buckets - 1, Math.floor((to - start) / width));
 
     for (let bucket = first; bucket <= last; bucket += 1) {
       const overlap =
-        Math.min(segment.to, start + (bucket + 1) * width) -
-        Math.max(segment.from, start + bucket * width);
+        Math.min(to, start + (bucket + 1) * width) - Math.max(from, start + bucket * width);
 
       if (overlap <= 0) continue;
 
@@ -69,26 +76,24 @@ export const resample = (
   return sums.map((sum, bucket) => (weights[bucket] > 0 ? sum / weights[bucket] : null));
 };
 
-export const summarize = (
-  samples: readonly Sample[],
-  start: number,
-  end: number,
-): Summary | undefined => {
-  const segments = toSegments(samples, start, end).filter(hasValue);
+export const summarize = (segments: readonly Segment[]): Summary | undefined => {
+  const valued = segments.filter(hasValue);
 
-  if (segments.length === 0) return undefined;
+  if (valued.length === 0) return undefined;
 
-  const min = segments.reduce((best, segment) => (segment.value < best.value ? segment : best));
-  const max = segments.reduce((best, segment) => (segment.value > best.value ? segment : best));
-  const duration = segments.reduce((total, segment) => total + (segment.to - segment.from), 0);
-  const weighted = segments.reduce(
+  const lowest = (segment: ValueSegment): number => segment.min ?? segment.value;
+  const highest = (segment: ValueSegment): number => segment.max ?? segment.value;
+  const min = valued.reduce((best, segment) => (lowest(segment) < lowest(best) ? segment : best));
+  const max = valued.reduce((best, segment) => (highest(segment) > highest(best) ? segment : best));
+  const duration = valued.reduce((total, segment) => total + (segment.to - segment.from), 0);
+  const weighted = valued.reduce(
     (total, segment) => total + segment.value * (segment.to - segment.from),
     0,
   );
 
   return {
-    min: { value: min.value, time: min.from },
-    max: { value: max.value, time: max.from },
+    min: { value: lowest(min), time: min.from },
+    max: { value: highest(max), time: max.from },
     average: weighted / duration,
   };
 };

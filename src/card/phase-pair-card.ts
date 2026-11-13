@@ -3,7 +3,7 @@ import type { PropertyDeclarations, PropertyValues, TemplateResult } from 'lit';
 import { createStubConfig } from '../config/defaults';
 import { normalizeConfig } from '../config/validate';
 import { EDITOR_TYPE } from '../const';
-import { fetchVoltageHistory } from '../ha/history';
+import { loadVoltageSegments } from '../ha/voltage-source';
 import { openMoreInfo } from '../ha/more-info';
 import { toFormatLocale } from '../logic/format';
 import type { CardSettings, PhasePairCardConfig } from '../types/config';
@@ -147,11 +147,11 @@ export class PhasePairCard extends LitElement {
     const start = end - settings.hoursToShow * HOUR;
 
     try {
-      const samples = await fetchVoltageHistory(hass, historyEntities(settings), start, end);
+      const segments = await loadVoltageSegments(hass, historyEntities(settings), [start, end]);
 
       if (key !== this._historyKey) return;
 
-      this._history = createSnapshot(samples, [start, end]);
+      this._history = createSnapshot(segments, [start, end]);
     } catch (error) {
       console.warn('phase-pair-card: unable to load voltage history', error);
     }

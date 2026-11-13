@@ -55,7 +55,7 @@ HACS registers the dashboard resource automatically.
 1. Download `phase-pair-card.js` from the [latest release](https://github.com/RobinCK/lovelace-phase-pair-card/releases/latest).
 2. Copy it to `<config>/www/phase-pair-card.js`.
 3. Go to **Settings → Dashboards → ⋮ → Resources** and add a resource:
-   - URL: `/local/phase-pair-card.js?v=1.0.1`
+   - URL: `/local/phase-pair-card.js?v=1.0.2`
    - Type: **JavaScript module**
 
    If your dashboards are in YAML mode, add it to `configuration.yaml` instead:
@@ -63,7 +63,7 @@ HACS registers the dashboard resource automatically.
    ```yaml
    lovelace:
      resources:
-       - url: /local/phase-pair-card.js?v=1.0.1
+       - url: /local/phase-pair-card.js?v=1.0.2
          type: module
    ```
 
@@ -74,7 +74,7 @@ HACS registers the dashboard resource automatically.
 - **HACS** shows an update as soon as a new release is published. Click **Update** and reload the browser page.
 - **Manual**: replace `phase-pair-card.js` with the file from the new release and bump the `?v=` query in the resource URL so browsers drop the cached copy.
 
-The browser console prints the loaded version (`PHASE-PAIR-CARD v1.0.1`), which is handy to confirm an update.
+The browser console prints the loaded version (`PHASE-PAIR-CARD v1.0.2`), which is handy to confirm an update.
 
 ## Configuration
 
@@ -196,7 +196,9 @@ Power sensors in `mW`, `W`, `kW` or `MW` and voltage sensors in `mV`, `V` or `kV
 
 ### History chart
 
-The `single` view loads the voltage history of the last `hours_to_show` hours from the Home Assistant recorder and refreshes it every five minutes. The chart averages the values over time, leaves gaps where a sensor was unavailable and shows the minimum and maximum with the time they happened.
+The `single` view shows the last `hours_to_show` hours and refreshes every five minutes. It reads the recorder's 5-minute statistics, which every sensor with `state_class: measurement` has, so even sensors that report every second load quickly. The few minutes not yet in the statistics and sensors without statistics are read from the state history.
+
+The chart averages the values over time, leaves gaps where a sensor was unavailable and shows the minimum and maximum with the time they happened. Night hours (23:00–06:00 in your local time) are shaded and labelled.
 
 ## Examples
 

@@ -97,3 +97,21 @@ export const nightSpans = (span: TimeSpan, hours: Range = NIGHT_HOURS): TimeSpan
 
   return spans;
 };
+
+export const nightLabelX = (
+  nights: readonly TimeSpan[],
+  span: TimeSpan,
+  width: number,
+  labelWidth: number,
+): number | undefined => {
+  const widest = nights
+    .map(([from, to]) => [timeX(from, span, width), timeX(to, span, width)] as const)
+    .reduce<readonly [number, number] | undefined>(
+      (best, current) => (!best || current[1] - current[0] > best[1] - best[0] ? current : best),
+      undefined,
+    );
+
+  if (!widest || widest[1] - widest[0] < labelWidth) return undefined;
+
+  return widest[0];
+};

@@ -1,5 +1,5 @@
 import { resample, summarize } from '../logic/series';
-import type { Sample, Summary } from '../logic/series';
+import type { Segment, Summary } from '../logic/series';
 import type { TimeSpan } from '../logic/chart';
 
 export const CHART_BUCKETS = 288;
@@ -15,16 +15,16 @@ export interface HistorySnapshot {
 }
 
 export const createSnapshot = (
-  samples: ReadonlyMap<string, readonly Sample[]>,
+  segments: ReadonlyMap<string, readonly Segment[]>,
   span: TimeSpan,
 ): HistorySnapshot => ({
   span,
   series: new Map(
-    [...samples].map(([entityId, list]) => [
+    [...segments].map(([entityId, list]) => [
       entityId,
       {
         values: resample(list, span[0], span[1], CHART_BUCKETS),
-        summary: summarize(list, span[0], span[1]),
+        summary: summarize(list),
       },
     ]),
   ),
