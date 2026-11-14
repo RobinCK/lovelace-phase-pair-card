@@ -1,16 +1,20 @@
 import { isHexColor } from '../logic/color';
 import type {
   CardSettings,
+  ImbalanceThresholds,
   Phase,
   Range,
   Side,
+  SideKey,
   SideLabels,
   ViewMode,
   VoltageThresholds,
 } from '../types/config';
 import {
   DEFAULT_HOURS,
+  DEFAULT_IMBALANCE,
   DEFAULT_LABELS,
+  DEFAULT_SIDE,
   DEFAULT_VOLTAGE,
   MAX_HOURS,
   phaseColor,
@@ -19,7 +23,11 @@ import {
 
 const ENTITY_ID = /^[a-z0-9_]+\.[a-z0-9_]+$/;
 
-const VIEWS: readonly ViewMode[] = ['all', 'single'];
+const VIEWS: readonly ViewMode[] = ['all', 'single', 'balance'];
+
+const SIDES: readonly SideKey[] = ['before', 'after'];
+
+const BALANCE_PHASES = 3;
 
 type UnknownRecord = Readonly<Record<string, unknown>>;
 
@@ -42,6 +50,14 @@ const fail = (message: string): never => {
 
 const reject = (message: string, actual: unknown): never =>
   fail(`${message} (got ${describe(actual)})`);
+
+const oneOf = (options: readonly string[]): string => {
+  const quoted = options.map((option) => `"${option}"`);
+
+  return quoted.length < 2
+    ? quoted.join('')
+    : `${quoted.slice(0, -1).join(', ')} or ${quoted[quoted.length - 1]}`;
+};
 
 const isRecord = (value: unknown): value is UnknownRecord =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -103,12 +119,36 @@ const readHours = (value: unknown): number => {
   return hours;
 };
 
-const readView = (value: unknown): ViewMode => {
-  if (value === undefined || value === null) return 'all';
+const readChoice = <T extends string>(
+  value: unknown,
+  field: string,
+  options: readonly T[],
+  fallback: T,
+): T => {
+  if (value === undefined || value === null) return fallback;
 
-  const view = VIEWS.find((candidate) => candidate === value);
+  const choice = options.find((option) => option === value);
 
-  return view ?? reject(`"view" must be ${VIEWS.map((item) => `"${item}"`).join(' or ')}`, value);
+  return choice ?? reject(`"${field}" must be ${oneOf(options)}`, value);
+};
+
+const readImbalance = (value: unknown): ImbalanceThresholds => {
+  if (value === undefined || value === null) return DEFAULT_IMBALANCE;
+  if (!isRecord(value))
+    return reject('"imbalance" must contain "warning" and/or "critical"', value);
+
+  const thresholds: ImbalanceThresholds = {
+    warning: readNumber(value.warning, 'imbalance.warning', DEFAULT_IMBALANCE.warning),
+    critical: readNumber(value.critical, 'imbalance.critical', DEFAULT_IMBALANCE.critical),
+  };
+
+  if (thresholds.warning <= 0 || thresholds.warning >= thresholds.critical) {
+    return fail(
+      `"imbalance.warning" must be above 0 and below "imbalance.critical": warning is ${thresholds.warning} %, critical is ${thresholds.critical} %`,
+    );
+  }
+
+  return thresholds;
 };
 
 const readEntity = (value: unknown, phase: string, field: string): string | undefined => {
@@ -120,15 +160,22 @@ const readEntity = (value: unknown, phase: string, field: string): string | unde
   return value;
 };
 
-const readSide = (value: unknown, phase: string, side: 'before' | 'after'): Side => {
-  if (value === undefined || value === null) return { voltage: undefined, power: undefined };
+const readSide = (value: unknown, phase: string, side: SideKey): Side => {
+  if (value === undefined || value === null) {
+    return { voltage: undefined, power: undefined, current: undefined };
+  }
+
   if (!isRecord(value)) {
-    return reject(`${phase}: "${side}" must contain "voltage" and/or "power" entities`, value);
+    return reject(
+      `${phase}: "${side}" must contain "voltage", "power" and/or "current" entities`,
+      value,
+    );
   }
 
   return {
     voltage: readEntity(value.voltage, phase, `${side}.voltage`),
     power: readEntity(value.power, phase, `${side}.power`),
+    current: readEntity(value.current, phase, `${side}.current`),
   };
 };
 
@@ -198,14 +245,25 @@ const readLabels = (config: UnknownRecord): SideLabels => ({
   after: readText(config.after_label, 'after_label', DEFAULT_LABELS.after) ?? DEFAULT_LABELS.after,
 });
 
+const ensurePhaseCount = (view: ViewMode, phases: readonly Phase[]): void => {
+  if (view !== 'balance' || phases.length === BALANCE_PHASES) return;
+
+  fail(`The balance view needs exactly ${BALANCE_PHASES} phases (got ${phases.length})`);
+};
+
 export const normalizeConfig = (config: unknown): CardSettings => {
   if (!isRecord(config)) return reject('The card configuration must be an object', config);
 
+  const view = readChoice(config.view, 'view', VIEWS, 'all');
+  const phases = readPhases(config.phases);
+
+  ensurePhaseCount(view, phases);
+
   return {
     title: readText(config.title, 'title', undefined),
-    view: readView(config.view),
+    view,
     labels: readLabels(config),
-    phases: readPhases(config.phases),
+    phases,
     voltage: readVoltage(config.voltage),
     showPower: readBoolean(config.show_power, 'show_power', true),
     showDelta: readBoolean(config.show_delta, 'show_delta', true),
@@ -213,5 +271,7 @@ export const normalizeConfig = (config: unknown): CardSettings => {
     showBefore: readBoolean(config.show_before, 'show_before', true),
     hoursToShow: readHours(config.hours_to_show),
     highlightNight: readBoolean(config.highlight_night, 'highlight_night', true),
+    side: readChoice(config.side, 'side', SIDES, DEFAULT_SIDE),
+    imbalance: readImbalance(config.imbalance),
   };
 };

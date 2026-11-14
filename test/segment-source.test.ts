@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { toStatisticSegments } from '../src/ha/statistics';
-import { loadVoltageSegments } from '../src/ha/voltage-source';
+import { loadSegments } from '../src/ha/segment-source';
 import type { HomeAssistant } from '../src/types/ha';
 
 type Message = Readonly<Record<string, unknown>>;
@@ -40,7 +40,7 @@ describe('toStatisticSegments', () => {
   });
 });
 
-describe('loadVoltageSegments', () => {
+describe('loadSegments', () => {
   it('uses statistics and fills only the recent tail from history', async () => {
     const hass = createHass((message) => {
       if (message.type === 'recorder/statistics_during_period') {
@@ -50,7 +50,7 @@ describe('loadVoltageSegments', () => {
       return { 'sensor.house': [{ s: '231', lu: seconds(600_000) }] };
     });
 
-    const segments = await loadVoltageSegments(hass, ['sensor.house'], [0, 900_000]);
+    const segments = await loadSegments(hass, ['sensor.house'], [0, 900_000], 'voltage');
 
     expect(segments.get('sensor.house')).toEqual([
       { from: 0, to: 600_000, value: 230, min: 228, max: 232 },
@@ -60,6 +60,7 @@ describe('loadVoltageSegments', () => {
       'recorder/statistics_during_period',
       'history/history_during_period',
     ]);
+    expect(hass.calls[0]).toMatchObject({ units: { voltage: 'V' } });
     expect(hass.calls[1]).toMatchObject({
       entity_ids: ['sensor.house'],
       start_time: new Date(600_000).toISOString(),
@@ -73,10 +74,18 @@ describe('loadVoltageSegments', () => {
       return { 'sensor.raw': [{ s: '219', lu: seconds(0) }] };
     });
 
-    const segments = await loadVoltageSegments(hass, ['sensor.raw'], [0, 900_000]);
+    const segments = await loadSegments(hass, ['sensor.raw'], [0, 900_000], 'voltage');
 
     expect(segments.get('sensor.raw')).toEqual([{ from: 0, to: 900_000, value: 219 }]);
     expect(hass.calls[1]).toMatchObject({ start_time: new Date(0).toISOString() });
+  });
+
+  it('requests currents in amperes', async () => {
+    const hass = createHass(() => ({}));
+
+    await loadSegments(hass, ['sensor.l1_current'], [0, 900_000], 'current');
+
+    expect(hass.calls[0]).toMatchObject({ units: { electric_current: 'A' } });
   });
 
   it('falls back to history when statistics cannot be loaded', async () => {
@@ -86,7 +95,7 @@ describe('loadVoltageSegments', () => {
       return { 'sensor.raw': [{ s: '219', lu: seconds(0) }] };
     });
 
-    const segments = await loadVoltageSegments(hass, ['sensor.raw'], [0, 900_000]);
+    const segments = await loadSegments(hass, ['sensor.raw'], [0, 900_000], 'voltage');
 
     expect(segments.get('sensor.raw')).toEqual([{ from: 0, to: 900_000, value: 219 }]);
   });

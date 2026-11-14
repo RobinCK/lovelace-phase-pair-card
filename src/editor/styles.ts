@@ -29,7 +29,7 @@ export const editorStyles = css`
 
   .view-switch {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     padding: 3px;
     border: 1px solid var(--divider-color);
     border-radius: 10px;

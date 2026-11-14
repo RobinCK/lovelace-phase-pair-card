@@ -36,11 +36,38 @@ const volts = (name: string): SelectorField => ({
   selector: { number: { mode: 'box', step: 1, unit_of_measurement: 'V' } },
 });
 
+const percent = (name: string): SelectorField => ({
+  name,
+  selector: { number: { mode: 'box', min: 1, max: 1000, step: 1, unit_of_measurement: '%' } },
+});
+
 const grid = (...schema: FormField[]): GridField => ({ type: 'grid', name: '', schema });
 
 export const GENERAL_SCHEMA: readonly FormField[] = [
   text('title'),
   grid(text('before_label'), text('after_label')),
+];
+
+export const BALANCE_GENERAL_SCHEMA: readonly FormField[] = [text('title')];
+
+export const balanceSchema = (labels: SideLabels): readonly FormField[] => [
+  {
+    name: 'side',
+    selector: {
+      select: {
+        mode: 'dropdown',
+        options: [
+          { value: 'before', label: labels.before },
+          { value: 'after', label: labels.after },
+        ],
+      },
+    },
+  },
+  grid({
+    name: 'hours_to_show',
+    selector: { number: { mode: 'box', min: 1, max: 168, step: 1, unit_of_measurement: 'h' } },
+  }),
+  grid(percent('imbalance_warning'), percent('imbalance_critical')),
 ];
 
 export const ALL_OPTIONS_SCHEMA: readonly FormField[] = [
@@ -100,11 +127,15 @@ const FIELD_LABELS: Readonly<Partial<Record<string, string>>> = {
   scale_max: 'Scale to',
   name: 'Phase name',
   color: 'Color',
+  side: 'Use sensors from',
+  imbalance_warning: 'Imbalance warning',
+  imbalance_critical: 'Imbalance critical',
 };
 
 export const SENSOR_LABELS: Readonly<Record<Quantity, Readonly<Record<SensorLayout, string>>>> = {
   voltage: { stacked: 'Voltage sensor', grid: 'Voltage' },
   power: { stacked: 'Power sensor', grid: 'Power' },
+  current: { stacked: 'Current sensor', grid: 'Current' },
 };
 
 const DYNAMIC_LABELS: Readonly<Partial<Record<string, (labels: SideLabels) => string>>> = {

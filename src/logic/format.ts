@@ -111,3 +111,8 @@ export const formatTime = (timestamp: number, locale: FormatLocale, withDate = f
     minute: '2-digit',
     hour12: locale.hour12,
   }).format(timestamp);
+
+export const formatHour = (timestamp: number, locale: FormatLocale): string =>
+  new Intl.DateTimeFormat(locale.timeLocale, { hour: '2-digit', hour12: locale.hour12 }).format(
+    timestamp,
+  );

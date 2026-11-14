@@ -8,6 +8,7 @@ import type { HassEntities, HomeAssistant } from '../types/ha';
 export interface SideModel {
   readonly voltage: Reading;
   readonly power: Reading;
+  readonly current: Reading;
 }
 
 export interface PhaseModel {
@@ -21,6 +22,7 @@ export interface PhaseModel {
 const readSide = (states: HassEntities, side: Side): SideModel => ({
   voltage: readEntity(states, side.voltage, 'voltage'),
   power: readEntity(states, side.power, 'power'),
+  current: readEntity(states, side.current, 'current'),
 });
 
 export const buildPhaseModels = (settings: CardSettings, hass: HomeAssistant): PhaseModel[] => {
@@ -35,18 +37,13 @@ export const buildPhaseModels = (settings: CardSettings, hass: HomeAssistant): P
   }));
 };
 
+export const definedIds = (entityIds: readonly (string | undefined)[]): string[] => [
+  ...new Set(entityIds.filter((entityId): entityId is string => entityId !== undefined)),
+];
+
 export const trackedEntities = (settings: CardSettings): string[] =>
-  settings.phases
-    .flatMap((phase) => [
-      phase.before.voltage,
-      phase.before.power,
-      phase.after.voltage,
-      phase.after.power,
-    ])
-    .filter((entityId): entityId is string => entityId !== undefined);
-
-export const historyEntities = (settings: CardSettings): string[] => {
-  const voltages = settings.phases.flatMap((phase) => [phase.before.voltage, phase.after.voltage]);
-
-  return [...new Set(voltages.filter((entityId): entityId is string => entityId !== undefined))];
-};
+  definedIds(
+    settings.phases.flatMap((phase) =>
+      [phase.before, phase.after].flatMap((side) => [side.voltage, side.power, side.current]),
+    ),
+  );

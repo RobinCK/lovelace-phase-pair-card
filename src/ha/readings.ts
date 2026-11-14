@@ -1,6 +1,6 @@
 import type { HassEntities, HassEntity } from '../types/ha';
 
-export type Quantity = 'voltage' | 'power';
+export type Quantity = 'voltage' | 'power' | 'current';
 
 export type ReadingIssue = 'unset' | 'missing' | 'unavailable' | 'unknown' | 'invalid';
 
@@ -20,6 +20,7 @@ export type Reading = ValueReading | IssueReading;
 const UNIT_FACTORS: Readonly<Record<Quantity, Readonly<Partial<Record<string, number>>>>> = {
   voltage: { mV: 0.001, V: 1, kV: 1000 },
   power: { mW: 0.001, W: 1, kW: 1000, MW: 1_000_000 },
+  current: { mA: 0.001, A: 1, kA: 1000 },
 };
 
 const STATE_ISSUES: Readonly<Partial<Record<string, ReadingIssue>>> = {
@@ -34,8 +35,6 @@ export const unitFactor = (quantity: Quantity, unit: unknown): number => {
 
   return UNIT_FACTORS[quantity][unit] ?? 1;
 };
-
-export const QUANTITIES: readonly Quantity[] = ['voltage', 'power'];
 
 export const measuresQuantity = (entity: HassEntity, quantity: Quantity): boolean => {
   const { device_class: deviceClass, unit_of_measurement: unit } = entity.attributes;

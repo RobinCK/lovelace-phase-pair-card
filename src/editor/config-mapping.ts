@@ -1,15 +1,22 @@
-import { DEFAULT_HOURS, DEFAULT_LABELS, DEFAULT_VOLTAGE, createPhase } from '../config/defaults';
+import {
+  DEFAULT_HOURS,
+  DEFAULT_IMBALANCE,
+  DEFAULT_LABELS,
+  DEFAULT_SIDE,
+  DEFAULT_VOLTAGE,
+  createPhase,
+} from '../config/defaults';
 import type { Quantity } from '../ha/readings';
 import type {
+  ImbalanceConfig,
   PhaseConfig,
   PhasePairCardConfig,
   Range,
   SideEntitiesConfig,
+  SideKey,
   ViewMode,
   VoltageConfig,
 } from '../types/config';
-
-export type SideKey = 'before' | 'after';
 
 export interface SettingsFields {
   readonly title?: string;
@@ -28,11 +35,12 @@ export interface SettingsFields {
   readonly critical_max?: number;
   readonly scale_min?: number;
   readonly scale_max?: number;
+  readonly side?: SideKey;
+  readonly imbalance_warning?: number;
+  readonly imbalance_critical?: number;
 }
 
 type OptionKey = Exclude<keyof PhasePairCardConfig, 'type' | 'phases'>;
-
-type VoltageKey = keyof VoltageConfig;
 
 const sameValue = (first: unknown, second: unknown): boolean =>
   JSON.stringify(first) === JSON.stringify(second);
@@ -57,12 +65,13 @@ const assignOption = <K extends OptionKey>(
   target[key] = value;
 };
 
-const assignVoltage = <K extends VoltageKey>(
-  target: VoltageConfig,
+const assignNested = <T extends object, K extends keyof T>(
+  target: T,
   key: K,
-  value: VoltageConfig[K],
+  value: T[K],
+  fallback: T[K],
 ): void => {
-  if (target[key] === undefined && sameValue(value, DEFAULT_VOLTAGE[key])) return;
+  if (target[key] === undefined && sameValue(value, fallback)) return;
 
   target[key] = value;
 };
@@ -100,6 +109,9 @@ export const toSettingsFields = (config: PhasePairCardConfig): SettingsFields =>
     critical_max: critical[1],
     scale_min: scale[0],
     scale_max: scale[1],
+    side: config.side ?? DEFAULT_SIDE,
+    imbalance_warning: config.imbalance?.warning ?? DEFAULT_IMBALANCE.warning,
+    imbalance_critical: config.imbalance?.critical ?? DEFAULT_IMBALANCE.critical,
   };
 };
 
@@ -109,20 +121,54 @@ const toVoltageConfig = (
 ): VoltageConfig => {
   const voltage: VoltageConfig = { ...current };
 
-  assignVoltage(voltage, 'nominal', fields.nominal ?? DEFAULT_VOLTAGE.nominal);
-  assignVoltage(
+  assignNested(
+    voltage,
+    'nominal',
+    fields.nominal ?? DEFAULT_VOLTAGE.nominal,
+    DEFAULT_VOLTAGE.nominal,
+  );
+  assignNested(
     voltage,
     'normal',
     pair(fields.normal_min, fields.normal_max, DEFAULT_VOLTAGE.normal),
+    DEFAULT_VOLTAGE.normal,
   );
-  assignVoltage(
+  assignNested(
     voltage,
     'critical',
     pair(fields.critical_min, fields.critical_max, DEFAULT_VOLTAGE.critical),
+    DEFAULT_VOLTAGE.critical,
   );
-  assignVoltage(voltage, 'scale', pair(fields.scale_min, fields.scale_max, DEFAULT_VOLTAGE.scale));
+  assignNested(
+    voltage,
+    'scale',
+    pair(fields.scale_min, fields.scale_max, DEFAULT_VOLTAGE.scale),
+    DEFAULT_VOLTAGE.scale,
+  );
 
   return voltage;
+};
+
+const toImbalanceConfig = (
+  current: ImbalanceConfig | undefined,
+  fields: SettingsFields,
+): ImbalanceConfig => {
+  const imbalance: ImbalanceConfig = { ...current };
+
+  assignNested(
+    imbalance,
+    'warning',
+    fields.imbalance_warning ?? DEFAULT_IMBALANCE.warning,
+    DEFAULT_IMBALANCE.warning,
+  );
+  assignNested(
+    imbalance,
+    'critical',
+    fields.imbalance_critical ?? DEFAULT_IMBALANCE.critical,
+    DEFAULT_IMBALANCE.critical,
+  );
+
+  return imbalance;
 };
 
 export const applySettingsFields = (
@@ -131,6 +177,7 @@ export const applySettingsFields = (
 ): PhasePairCardConfig => {
   const next: PhasePairCardConfig = { ...config };
   const voltage = toVoltageConfig(config.voltage, fields);
+  const imbalance = toImbalanceConfig(config.imbalance, fields);
 
   assignOption(next, 'title', blankToUndefined(fields.title), undefined);
   assignOption(next, 'before_label', blankToUndefined(fields.before_label), DEFAULT_LABELS.before);
@@ -142,6 +189,13 @@ export const applySettingsFields = (
   assignOption(next, 'highlight_night', fields.highlight_night, true);
   assignOption(next, 'hours_to_show', fields.hours_to_show, DEFAULT_HOURS);
   assignOption(next, 'voltage', Object.keys(voltage).length > 0 ? voltage : undefined, undefined);
+  assignOption(next, 'side', fields.side, DEFAULT_SIDE);
+  assignOption(
+    next,
+    'imbalance',
+    Object.keys(imbalance).length > 0 ? imbalance : undefined,
+    undefined,
+  );
 
   return next;
 };
@@ -165,10 +219,8 @@ export const updatePhase = (
   ),
 });
 
-export const cleanSide = (side: SideEntitiesConfig): SideEntitiesConfig => ({
-  ...(side.voltage ? { voltage: side.voltage } : {}),
-  ...(side.power ? { power: side.power } : {}),
-});
+export const cleanSide = (side: SideEntitiesConfig): SideEntitiesConfig =>
+  Object.fromEntries(Object.entries(side).filter(([, entityId]) => Boolean(entityId)));
 
 export const updateSensor = (
   config: PhasePairCardConfig,
@@ -177,10 +229,7 @@ export const updateSensor = (
   quantity: Quantity,
   entityId: string | undefined,
 ): PhasePairCardConfig => {
-  const current = phasesOf(config)[index]?.[side] ?? {};
-  const entities = cleanSide(
-    quantity === 'voltage' ? { ...current, voltage: entityId } : { ...current, power: entityId },
-  );
+  const entities = cleanSide({ ...phasesOf(config)[index]?.[side], [quantity]: entityId });
 
   return updatePhase(config, index, side === 'before' ? { before: entities } : { after: entities });
 };

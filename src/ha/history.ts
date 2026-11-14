@@ -1,6 +1,7 @@
 import type { Sample } from '../logic/series';
 import type { HomeAssistant } from '../types/ha';
 import { parseNumericState, unitFactor } from './readings';
+import type { Quantity } from './readings';
 
 export interface CompressedState {
   readonly s: string;
@@ -21,11 +22,12 @@ export const toSamples = (states: readonly CompressedState[], factor: number): S
     return [{ time: seconds * 1000, value: value === undefined ? null : value * factor }];
   });
 
-export const fetchVoltageHistory = async (
+export const fetchHistory = async (
   hass: HomeAssistant,
   entityIds: readonly string[],
   start: number,
   end: number,
+  quantity: Quantity,
 ): Promise<Map<string, Sample[]>> => {
   if (entityIds.length === 0) return new Map();
 
@@ -41,7 +43,7 @@ export const fetchVoltageHistory = async (
 
   return new Map(
     entityIds.map((entityId) => {
-      const factor = unitFactor('voltage', hass.states[entityId]?.attributes.unit_of_measurement);
+      const factor = unitFactor(quantity, hass.states[entityId]?.attributes.unit_of_measurement);
 
       return [entityId, toSamples(response[entityId] ?? [], factor)];
     }),

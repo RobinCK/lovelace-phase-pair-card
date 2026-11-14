@@ -1,10 +1,13 @@
-export type ViewMode = 'all' | 'single';
+export type ViewMode = 'all' | 'single' | 'balance';
+
+export type SideKey = 'before' | 'after';
 
 export type Range = readonly [number, number];
 
 export interface SideEntitiesConfig {
   voltage?: string;
   power?: string;
+  current?: string;
 }
 
 export interface PhaseConfig {
@@ -21,6 +24,11 @@ export interface VoltageConfig {
   scale?: Range;
 }
 
+export interface ImbalanceConfig {
+  warning?: number;
+  critical?: number;
+}
+
 export interface PhasePairCardConfig {
   type: string;
   title?: string;
@@ -35,11 +43,14 @@ export interface PhasePairCardConfig {
   show_before?: boolean;
   hours_to_show?: number;
   highlight_night?: boolean;
+  side?: SideKey;
+  imbalance?: ImbalanceConfig;
 }
 
 export interface Side {
   readonly voltage: string | undefined;
   readonly power: string | undefined;
+  readonly current: string | undefined;
 }
 
 export interface Phase {
@@ -54,6 +65,11 @@ export interface VoltageThresholds {
   readonly normal: Range;
   readonly critical: Range;
   readonly scale: Range;
+}
+
+export interface ImbalanceThresholds {
+  readonly warning: number;
+  readonly critical: number;
 }
 
 export interface SideLabels {
@@ -73,4 +89,6 @@ export interface CardSettings {
   readonly showBefore: boolean;
   readonly hoursToShow: number;
   readonly highlightNight: boolean;
+  readonly side: SideKey;
+  readonly imbalance: ImbalanceThresholds;
 }

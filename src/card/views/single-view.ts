@@ -7,6 +7,7 @@ import { DASH, formatTime, formatVoltage } from '../../logic/format';
 import { voltageStatus } from '../../logic/thresholds';
 import type { CardSettings, VoltageThresholds } from '../../types/config';
 import type { SeriesSnapshot } from '../history-snapshot';
+import { definedIds } from '../model';
 import type { PhaseModel } from '../model';
 import {
   ISSUE_TEXT,
@@ -25,6 +26,8 @@ import type { Tone } from './parts';
 import type { CardView, ViewContext } from './types';
 
 const HOUR = 3_600_000;
+
+const CHART_BUCKETS = 288;
 
 const EMPTY: readonly (number | null)[] = [];
 
@@ -229,8 +232,14 @@ const renderPanel = (phase: PhaseModel, context: ViewContext): TemplateResult =>
 };
 
 export const singleView: CardView = {
-  usesHistory: true,
   surface: 'bare',
+  history: (settings) => ({
+    quantity: 'voltage',
+    entityIds: definedIds(
+      settings.phases.flatMap((phase) => [phase.before.voltage, phase.after.voltage]),
+    ),
+    buckets: CHART_BUCKETS,
+  }),
   render: (context) =>
     html`<div class="view view-single">
       ${context.settings.title ? html`<h2 class="title">${context.settings.title}</h2>` : nothing}

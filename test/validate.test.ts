@@ -40,8 +40,9 @@ describe('normalizeConfig', () => {
       before: {
         voltage: 'sensor.zig_meter_raw_l1_voltage',
         power: 'sensor.zig_meter_raw_l1_power',
+        current: undefined,
       },
-      after: { voltage: 'sensor.zig_meter_house_l1_voltage', power: undefined },
+      after: { voltage: 'sensor.zig_meter_house_l1_voltage', power: undefined, current: undefined },
     });
   });
 
@@ -107,13 +108,44 @@ describe('normalizeConfig', () => {
 
   it('validates view, booleans and history length', () => {
     expect(errorOf({ ...base, view: 'grid' })).toBe(
-      '"view" must be "all" or "single" (got "grid").',
+      '"view" must be "all", "single" or "balance" (got "grid").',
     );
     expect(errorOf({ ...base, show_power: 'yes' })).toBe(
       '"show_power" must be true or false (got "yes").',
     );
     expect(errorOf({ ...base, hours_to_show: 0 })).toBe(
       '"hours_to_show" must be a whole number from 1 to 168 (got 0).',
+    );
+  });
+
+  it('reads the balance view options', () => {
+    const settings = normalizeConfig({
+      ...base,
+      view: 'balance',
+      side: 'before',
+      imbalance: { warning: 15 },
+      phases: [phase, { name: 'L2' }, { name: 'L3', after: { current: 'sensor.l3_current' } }],
+    });
+
+    expect(settings.side).toBe('before');
+    expect(settings.imbalance).toEqual({ warning: 15, critical: 50 });
+    expect(settings.phases[2].after.current).toBe('sensor.l3_current');
+  });
+
+  it('defaults the balance view to the after side', () => {
+    expect(normalizeConfig(base).side).toBe('after');
+    expect(normalizeConfig(base).imbalance).toEqual({ warning: 20, critical: 50 });
+  });
+
+  it('explains balance view problems', () => {
+    expect(errorOf({ ...base, view: 'balance' })).toBe(
+      'The balance view needs exactly 3 phases (got 1).',
+    );
+    expect(errorOf({ ...base, side: 'grid' })).toBe(
+      '"side" must be "before" or "after" (got "grid").',
+    );
+    expect(errorOf({ ...base, imbalance: { warning: 60 } })).toBe(
+      '"imbalance.warning" must be above 0 and below "imbalance.critical": warning is 60 %, critical is 50 %.',
     );
   });
 

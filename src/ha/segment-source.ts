@@ -2,8 +2,9 @@ import type { TimeSpan } from '../logic/chart';
 import { samplesToSegments } from '../logic/series';
 import type { Segment } from '../logic/series';
 import type { HomeAssistant } from '../types/ha';
-import { fetchVoltageHistory } from './history';
-import { fetchVoltageStatistics } from './statistics';
+import { fetchHistory } from './history';
+import type { Quantity } from './readings';
+import { fetchStatistics } from './statistics';
 
 const lastEnd = (segments: readonly Segment[] | undefined): number | undefined =>
   segments?.at(-1)?.to;
@@ -12,20 +13,22 @@ const loadStatistics = async (
   hass: HomeAssistant,
   entityIds: readonly string[],
   span: TimeSpan,
+  quantity: Quantity,
 ): Promise<Map<string, Segment[]>> => {
   try {
-    return await fetchVoltageStatistics(hass, entityIds, span);
+    return await fetchStatistics(hass, entityIds, span, quantity);
   } catch {
     return new Map();
   }
 };
 
-export const loadVoltageSegments = async (
+export const loadSegments = async (
   hass: HomeAssistant,
   entityIds: readonly string[],
   span: TimeSpan,
+  quantity: Quantity,
 ): Promise<Map<string, Segment[]>> => {
-  const statistics = await loadStatistics(hass, entityIds, span);
+  const statistics = await loadStatistics(hass, entityIds, span, quantity);
   const covered = entityIds.filter((entityId) => lastEnd(statistics.get(entityId)) !== undefined);
   const uncovered = entityIds.filter((entityId) => !covered.includes(entityId));
   const tailStart = Math.min(
@@ -33,8 +36,8 @@ export const loadVoltageSegments = async (
     ...covered.map((entityId) => lastEnd(statistics.get(entityId)) ?? span[1]),
   );
   const [tail, full] = await Promise.all([
-    fetchVoltageHistory(hass, covered, tailStart, span[1]),
-    fetchVoltageHistory(hass, uncovered, span[0], span[1]),
+    fetchHistory(hass, covered, tailStart, span[1], quantity),
+    fetchHistory(hass, uncovered, span[0], span[1], quantity),
   ]);
 
   return new Map(

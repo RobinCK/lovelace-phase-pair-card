@@ -1,9 +1,11 @@
+import { PhasePairBars } from './card/neutral-bars';
 import { PhasePairChart } from './card/phase-chart';
 import { PhasePairCard } from './card/phase-pair-card';
 import {
   CARD_DESCRIPTION,
   CARD_NAME,
   CARD_TYPE,
+  BARS_TYPE,
   CARD_VERSION,
   CHART_TYPE,
   EDITOR_TYPE,
@@ -18,6 +20,7 @@ const define = (tag: string, element: CustomElementConstructor): void => {
 };
 
 define(CHART_TYPE, PhasePairChart);
+define(BARS_TYPE, PhasePairBars);
 define(EDITOR_TYPE, PhasePairCardEditor);
 define(CARD_TYPE, PhasePairCard);
 

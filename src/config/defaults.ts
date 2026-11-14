@@ -1,7 +1,9 @@
 import { CARD_TYPE } from '../const';
 import type {
+  ImbalanceThresholds,
   PhaseConfig,
   PhasePairCardConfig,
+  SideKey,
   SideLabels,
   VoltageThresholds,
 } from '../types/config';
@@ -17,6 +19,13 @@ export const DEFAULT_LABELS: SideLabels = {
   before: 'Before',
   after: 'After',
 };
+
+export const DEFAULT_IMBALANCE: ImbalanceThresholds = {
+  warning: 20,
+  critical: 50,
+};
+
+export const DEFAULT_SIDE: SideKey = 'after';
 
 export const DEFAULT_HOURS = 24;
 

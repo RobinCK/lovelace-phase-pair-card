@@ -1,6 +1,7 @@
 import type { TimeSpan } from '../logic/chart';
 import type { Segment } from '../logic/series';
 import type { HomeAssistant } from '../types/ha';
+import type { Quantity } from './readings';
 
 export interface StatisticRow {
   readonly start: number;
@@ -12,6 +13,12 @@ export interface StatisticRow {
 
 type StatisticsResponse = Readonly<Record<string, readonly StatisticRow[] | undefined>>;
 
+const STATISTIC_UNITS: Readonly<Record<Quantity, Readonly<Record<string, string>>>> = {
+  voltage: { voltage: 'V' },
+  power: { power: 'W' },
+  current: { electric_current: 'A' },
+};
+
 export const toStatisticSegments = (rows: readonly StatisticRow[], span: TimeSpan): Segment[] =>
   rows.flatMap((row) => {
     const from = Math.max(row.start, span[0]);
@@ -22,10 +29,11 @@ export const toStatisticSegments = (rows: readonly StatisticRow[], span: TimeSpa
     return [{ from, to, value: row.mean, min: row.min ?? undefined, max: row.max ?? undefined }];
   });
 
-export const fetchVoltageStatistics = async (
+export const fetchStatistics = async (
   hass: HomeAssistant,
   entityIds: readonly string[],
   span: TimeSpan,
+  quantity: Quantity,
 ): Promise<Map<string, Segment[]>> => {
   if (entityIds.length === 0) return new Map();
 
@@ -36,7 +44,7 @@ export const fetchVoltageStatistics = async (
     statistic_ids: entityIds,
     period: '5minute',
     types: ['mean', 'min', 'max'],
-    units: { voltage: 'V' },
+    units: STATISTIC_UNITS[quantity],
   });
 
   return new Map(

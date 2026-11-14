@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { updateSensor } from '../src/editor/config-mapping';
+import { applySettingsFields, toSettingsFields, updateSensor } from '../src/editor/config-mapping';
 import type { PhasePairCardConfig } from '../src/types/config';
 
 const config: PhasePairCardConfig = {
@@ -24,9 +24,40 @@ describe('updateSensor', () => {
     expect(next.phases[0].before).toEqual({});
   });
 
+  it('stores current sensors under "current"', () => {
+    const next = updateSensor(config, 0, 'before', 'current', 'sensor.raw_l1_current');
+
+    expect(next.phases[0].before).toEqual({
+      voltage: 'sensor.raw_l1_voltage',
+      current: 'sensor.raw_l1_current',
+    });
+  });
+
   it('creates the side when it is missing', () => {
     const next = updateSensor(config, 1, 'after', 'voltage', 'sensor.house_l2_voltage');
 
     expect(next.phases[1]).toEqual({ name: 'L2', after: { voltage: 'sensor.house_l2_voltage' } });
+  });
+});
+
+describe('applySettingsFields', () => {
+  const fields = toSettingsFields(config);
+
+  it('omits balance options that keep their defaults', () => {
+    const next = applySettingsFields(config, fields);
+
+    expect(next.side).toBeUndefined();
+    expect(next.imbalance).toBeUndefined();
+  });
+
+  it('writes changed balance options', () => {
+    const next = applySettingsFields(config, {
+      ...fields,
+      side: 'before',
+      imbalance_warning: 15,
+    });
+
+    expect(next.side).toBe('before');
+    expect(next.imbalance).toEqual({ warning: 15 });
   });
 });

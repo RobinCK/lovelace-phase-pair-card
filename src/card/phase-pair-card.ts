@@ -3,14 +3,14 @@ import type { PropertyDeclarations, PropertyValues, TemplateResult } from 'lit';
 import { createStubConfig } from '../config/defaults';
 import { normalizeConfig } from '../config/validate';
 import { EDITOR_TYPE } from '../const';
-import { loadVoltageSegments } from '../ha/voltage-source';
+import { loadSegments } from '../ha/segment-source';
 import { openMoreInfo } from '../ha/more-info';
 import { toFormatLocale } from '../logic/format';
 import type { CardSettings, PhasePairCardConfig } from '../types/config';
 import type { HomeAssistant, LovelaceGridOptions } from '../types/ha';
 import { createSnapshot } from './history-snapshot';
 import type { HistorySnapshot } from './history-snapshot';
-import { buildPhaseModels, historyEntities, trackedEntities } from './model';
+import { buildPhaseModels, trackedEntities } from './model';
 import { cardStyles } from './styles';
 import { VIEWS } from './views/registry';
 
@@ -19,7 +19,7 @@ const HOUR = 3_600_000;
 const REFRESH_INTERVAL = 5 * 60_000;
 
 const historyKey = (settings: CardSettings): string =>
-  JSON.stringify([settings.hoursToShow, historyEntities(settings)]);
+  JSON.stringify([settings.hoursToShow, VIEWS[settings.view].history(settings) ?? null]);
 
 const hassChanged = (
   previous: HomeAssistant | undefined,
@@ -133,27 +133,31 @@ export class PhasePairCard extends LitElement {
   }
 
   private _usesHistory(): boolean {
-    return this._settings ? VIEWS[this._settings.view].usesHistory : false;
+    return this._settings
+      ? VIEWS[this._settings.view].history(this._settings) !== undefined
+      : false;
   }
 
   private async _loadHistory(): Promise<void> {
     const settings = this._settings;
     const hass = this.hass;
 
-    if (!settings || !hass || !this._usesHistory()) return;
+    const request = settings ? VIEWS[settings.view].history(settings) : undefined;
+
+    if (!settings || !hass || !request) return;
 
     const key = this._historyKey;
     const end = Date.now();
     const start = end - settings.hoursToShow * HOUR;
 
     try {
-      const segments = await loadVoltageSegments(hass, historyEntities(settings), [start, end]);
+      const segments = await loadSegments(hass, request.entityIds, [start, end], request.quantity);
 
       if (key !== this._historyKey) return;
 
-      this._history = createSnapshot(segments, [start, end]);
+      this._history = createSnapshot(segments, [start, end], request.buckets);
     } catch (error) {
-      console.warn('phase-pair-card: unable to load voltage history', error);
+      console.warn('phase-pair-card: unable to load history', error);
     }
   }
 }

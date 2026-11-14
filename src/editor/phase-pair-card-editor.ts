@@ -5,9 +5,16 @@ import { styleMap } from 'lit/directives/style-map.js';
 import { DEFAULT_LABELS, phaseColor, phaseName } from '../config/defaults';
 import { hexToRgb, isHexColor, phaseAppearance, rgbToHex } from '../logic/color';
 import type { Rgb } from '../logic/color';
-import { QUANTITIES, measuresQuantity } from '../ha/readings';
+import { measuresQuantity } from '../ha/readings';
 import type { Quantity } from '../ha/readings';
-import type { PhaseConfig, PhasePairCardConfig, SideLabels, ViewMode } from '../types/config';
+import { DEFAULT_SIDE } from '../config/defaults';
+import type {
+  PhaseConfig,
+  PhasePairCardConfig,
+  SideKey,
+  SideLabels,
+  ViewMode,
+} from '../types/config';
 import type { HassEntity, HomeAssistant } from '../types/ha';
 import {
   addPhase,
@@ -21,15 +28,17 @@ import {
   viewOf,
   withView,
 } from './config-mapping';
-import type { SettingsFields, SideKey } from './config-mapping';
+import type { SettingsFields } from './config-mapping';
 import { loadHaComponents } from './load-ha-components';
 import {
   ALL_OPTIONS_SCHEMA,
+  BALANCE_GENERAL_SCHEMA,
   CHART_SCHEMA,
   GENERAL_SCHEMA,
   PHASE_SCHEMA,
   SENSOR_LABELS,
   SINGLE_THRESHOLDS_SCHEMA,
+  balanceSchema,
   fieldLabel,
   settingsLabeller,
 } from './schema';
@@ -53,7 +62,17 @@ interface ViewOption {
 const VIEW_OPTIONS: readonly ViewOption[] = [
   { value: 'all', label: 'All phases' },
   { value: 'single', label: 'Single phase' },
+  { value: 'balance', label: 'Phase balance' },
 ];
+
+const VIEW_SENSORS: Readonly<Record<ViewMode, readonly Quantity[]>> = {
+  all: ['voltage', 'power'],
+  single: ['voltage', 'power'],
+  balance: ['current', 'power'],
+};
+
+const BALANCE_HINT =
+  'Neutral current is estimated as the vector sum of the phase currents, assuming the phases are 120° apart. Imbalance is the largest deviation of a phase current from the average.';
 
 const THRESHOLDS_HINT =
   'Outside normal is a warning; below the min or above the max threshold is critical. On the chart, normal is the green band and thresholds are red dashes.';
@@ -67,6 +86,7 @@ const sensorsText = (count: number): string => `${count} sensor${count === 1 ? '
 const SENSOR_FILTERS: Readonly<Record<Quantity, (entity: HassEntity) => boolean>> = {
   voltage: (entity) => measuresQuantity(entity, 'voltage'),
   power: (entity) => measuresQuantity(entity, 'power'),
+  current: (entity) => measuresQuantity(entity, 'current'),
 };
 
 const SENSOR_DOMAINS: readonly string[] = ['sensor'];
@@ -102,10 +122,19 @@ export class PhasePairCardEditor extends LitElement {
     const view = viewOf(config);
 
     return html`
-      ${this._renderViewSwitch(view)} ${this._settingsForm(GENERAL_SCHEMA)}
-      ${view === 'single' ? this._renderSingle(config) : this._renderAll(config)}
+      ${this._renderViewSwitch(view)}
+      ${this._settingsForm(view === 'balance' ? BALANCE_GENERAL_SCHEMA : GENERAL_SCHEMA)}
+      ${this._sections[view](config)}
     `;
   }
+
+  private readonly _sections: Readonly<
+    Record<ViewMode, (config: PhasePairCardConfig) => TemplateResult>
+  > = {
+    all: (config) => this._renderAll(config),
+    single: (config) => this._renderSingle(config),
+    balance: (config) => this._renderBalance(config),
+  };
 
   private _renderViewSwitch(view: ViewMode): TemplateResult {
     return html`<div class="field">
@@ -131,6 +160,18 @@ export class PhasePairCardEditor extends LitElement {
   private _renderAll(config: PhasePairCardConfig): TemplateResult {
     return html`
       ${this._settingsForm(ALL_OPTIONS_SCHEMA)}
+      <h3>Phases</h3>
+      ${this._renderPhasePanels(config)}
+      <button type="button" class="action add" @click=${this._addPhase}>
+        ${plusIcon} Add phase
+      </button>
+    `;
+  }
+
+  private _renderBalance(config: PhasePairCardConfig): TemplateResult {
+    return html`
+      ${this._settingsForm(balanceSchema(this._labels()))}
+      <p class="hint">${BALANCE_HINT}</p>
       <h3>Phases</h3>
       ${this._renderPhasePanels(config)}
       <button type="button" class="action add" @click=${this._addPhase}>
@@ -167,11 +208,11 @@ export class PhasePairCardEditor extends LitElement {
       <div class="side-title" style=${styleMap({ '--ppc-line': line })}>
         <span class="line line-before" aria-hidden="true"></span>${labels.before}
       </div>
-      ${this._sensorPickers(phase, 0, 'before', 'grid')}
+      ${this._sensorPickers(phase, 0, 'before', 'grid', VIEW_SENSORS.single)}
       <div class="side-title" style=${styleMap({ '--ppc-line': line })}>
         <span class="line line-after" aria-hidden="true"></span>${labels.after}
       </div>
-      ${this._sensorPickers(phase, 0, 'after', 'grid')}
+      ${this._sensorPickers(phase, 0, 'after', 'grid', VIEW_SENSORS.single)}
     `;
   }
 
@@ -201,8 +242,18 @@ export class PhasePairCardEditor extends LitElement {
       >
       <div class="panel-content">
         ${this._phaseForm(phase, index)}
-        ${this._renderSidePanel(phase, index, 'before', labels.before)}
-        ${this._renderSidePanel(phase, index, 'after', labels.after)}
+        ${
+          this._config?.view === 'balance'
+            ? this._sensorPickers(
+                phase,
+                index,
+                this._config.side ?? DEFAULT_SIDE,
+                'stacked',
+                VIEW_SENSORS.balance,
+              )
+            : html`${this._renderSidePanel(phase, index, 'before', labels.before)}
+              ${this._renderSidePanel(phase, index, 'after', labels.after)}`
+        }
         ${
           total > 1
             ? html`<div class="actions">
@@ -239,7 +290,9 @@ export class PhasePairCardEditor extends LitElement {
       .expanded=${side === 'before'}
     >
       <span slot="leading-icon" class="legend-${side}" aria-hidden="true"></span>
-      <div class="side-content">${this._sensorPickers(phase, index, side, 'stacked')}</div>
+      <div class="side-content">
+        ${this._sensorPickers(phase, index, side, 'stacked', VIEW_SENSORS.all)}
+      </div>
     </ha-expansion-panel>`;
   }
 
@@ -279,11 +332,12 @@ export class PhasePairCardEditor extends LitElement {
     index: number,
     side: SideKey,
     layout: SensorLayout,
+    quantities: readonly Quantity[],
   ): TemplateResult {
     const entities = phase[side] ?? {};
 
     return html`<div class="sensors sensors-${layout}">
-      ${QUANTITIES.map(
+      ${quantities.map(
         (quantity) =>
           html`<ha-entity-picker
             .hass=${this.hass}

@@ -1,4 +1,5 @@
 import type { TemplateResult } from 'lit';
+import type { Quantity } from '../../ha/readings';
 import type { FormatLocale } from '../../logic/format';
 import type { CardSettings } from '../../types/config';
 import type { HistorySnapshot } from '../history-snapshot';
@@ -14,9 +15,15 @@ export interface ViewContext {
 
 export type CardSurface = 'framed' | 'bare';
 
+export interface HistoryRequest {
+  readonly quantity: Quantity;
+  readonly entityIds: readonly string[];
+  readonly buckets: number;
+}
+
 export interface CardView {
-  readonly usesHistory: boolean;
   readonly surface: CardSurface;
+  readonly history: (settings: CardSettings) => HistoryRequest | undefined;
   readonly render: (context: ViewContext) => TemplateResult;
   readonly cardSize: (settings: CardSettings) => number;
 }
